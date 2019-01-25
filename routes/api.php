@@ -1,7 +1,6 @@
 <?php
 
 // Redirect to APP_URL
-$router->get('/', function() {
+Route::get('/', function() {
 	return redirect(env('APP_URL'), 301);
 });
-
