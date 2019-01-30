@@ -14,6 +14,8 @@ $router->group(['prefix' => 'v1'], function () use ($router) {
 		$router->post('refresh', 'AuthController@refresh');
 		$router->post('user', 'AuthController@user');
 		$router->post('logout', 'AuthController@logout');
+		$router->post('deactivate', 'AuthController@deactivate');
+		$router->post('restore', 'AuthController@restore');
 	});
 });
 

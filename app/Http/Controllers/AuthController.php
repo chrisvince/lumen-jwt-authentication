@@ -17,7 +17,8 @@ class AuthController extends Controller
         $this->middleware('auth', [
             'only' => [
                 'user',
-                'logout'
+                'logout',
+                'deactivate'
             ]
         ]);
     }
@@ -45,26 +46,75 @@ class AuthController extends Controller
     }
 
     /**
-     * Get a JWT via given credentials.
+     * Deactivate a user.
+     *
+     * @param  string $token
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deactivate(Request $request) {
+        Auth::invalidate();
+        Auth::user()->delete();
+        return response()->json(['message' => 'User has been deactivated']);
+    }
+    
+    /**
+     * Restore a user.
+     *
+     * @param  string $token
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function restore(Request $request) {
+        $this->validate($request, [
+            'email' => 'required|string|email|max:255',
+            'password' => 'required|string|min:6'
+        ]);
+        $user = User::withTrashed()->where('email', $request->email)->first();
+        if(!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+        if (!$user->trashed()) {
+            return response()->json(['error' => 'User is already active'], 400);
+        }
+        if(!app('hash')->check($request->password, $user->password)) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+        $user->restore();
+        $credentials = $request->only(['email', 'password']);
+        return $this->loginWithCredendials($credentials);
+    }
+
+    /**
+     * Login a user.
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function login(Request $request) {
         $this->validate($request, [
             'email' => 'required|string|email|max:255',
-            'password' => 'required|string|min:6',
+            'password' => 'required|string|min:6'
         ]);
+        $user = User::withTrashed()->where('email', $request->email)->first();
+        if($user->trashed()) {
+            return response()->json(['error' => 'User has been deactivated'], 401 );
+        }
         $credentials = $request->only(['email', 'password']);
         return $this->loginWithCredendials($credentials);
     }
 
     /**
-     * Get the authenticated User.
+     * Get the authenticated user.
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function user() {
-        return response()->json(Auth::user());
+        try {
+            $user = Auth::user();
+        } catch (\Tymon\JWTAuth\Exceptions\UnauthorizedHttpException $e) {
+            return response()->json(['error' => 'Token not provided'], 401); 
+        }
+        return response()->json($user);
     }
 
     /**
@@ -74,7 +124,7 @@ class AuthController extends Controller
      */
     public function logout() {
         Auth::logout();
-        return response()->json(['message' => 'Successfully logged out']);
+        return response()->json(['message' => 'The user has been logged out']);
     }
 
     /**
@@ -103,8 +153,8 @@ class AuthController extends Controller
     protected function respondWithToken($token) {
         return response()->json([
             'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => Auth::factory()->getTTL() * 60
+            // 'token_type' => 'bearer',
+            // 'expires_in' => Auth::factory()->getTTL() * 60
         ]);
     }
     
