@@ -6,6 +6,8 @@
     "type": "project",
     "require": {
         "php": ">=7.1.3",
+        "illuminate/mail": "^5.7",
+        "illuminate/notifications": "^5.7",
         "laravel/lumen-framework": "5.7.*",
         "tymon/jwt-auth": "^1.0@dev",
         "vlucas/phpdotenv": "~2.2"
