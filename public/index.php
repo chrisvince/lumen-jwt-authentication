@@ -25,4 +25,9 @@ $app = require __DIR__.'/../bootstrap/app.php';
 |
 */
 
+if(!config('app.live')) {
+	http_response_code(404);
+	die();
+}
+
 $app->run();
