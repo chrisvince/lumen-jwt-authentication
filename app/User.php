@@ -106,14 +106,21 @@ class User
     public function markEmailAsVerified($token)
     {
         $userVerification = DB::table('email_verifications')->where('email', $this->email);
+        $match = false;
         if($this->email_verified_at) {
-            return response()->json(['message' => 'Email has been already been verified']);
+            return response()->json(['message' => 'Email has already been verified']);
         }
         if(!$userVerification->exists()) {
             return response()->json(['error' => 'There was an error processing this request'], 400);
         }
-        if(!Hash::check($token, $userVerification->first()->token)) {
-            return response()->json(['error' => 'The token is incorrect'], 400);
+        foreach($userVerification->get() as $verification) {
+            if(!Hash::check($token, $verification->token)) {
+                continue;
+            }
+            $match = true;
+        }
+        if(!$match) {
+            return response()->json(['error' => 'There was an error processing this request'], 400);
         }
         $userVerification->delete();
         $this->forceFill([
@@ -129,6 +136,9 @@ class User
      */
     public function sendEmailVerificationNotification()
     {
+        if($this->email_verified_at) {
+            return response()->json(['message' => 'Email has been already been verified'], 400);
+        }
         $token = str_random(64);
         DB::table('email_verifications')->insert([
             'email' => $this->email,
@@ -136,5 +146,6 @@ class User
             'created_at' => Carbon::now()
         ]);
         $this->notify(new VerifyEmail($token));
+        return response()->json(['message' => 'Email verification email has been sent']);
     }
 }

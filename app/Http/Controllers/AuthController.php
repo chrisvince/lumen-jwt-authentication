@@ -22,7 +22,9 @@ class AuthController extends Controller
                 'user',
                 'logout',
                 'deactivate',
-                'verifyEmailRequest'
+                'verifyEmailRequest',
+                'requestEmailVerification',
+                'checkEmailVerification'
             ]
         ]);
     }
@@ -114,11 +116,7 @@ class AuthController extends Controller
      * @return \Illuminate\Http\JsonResponse
      */
     public function user() {
-        try {
-            $user = Auth::user();
-        } catch (\Tymon\JWTAuth\Exceptions\UnauthorizedHttpException $e) {
-            return response()->json(['error' => 'Token not provided'], 401); 
-        }
+        $user = $this->getUser();
         return response()->json($user);
     }
     
@@ -232,24 +230,15 @@ class AuthController extends Controller
     /**
      * Request email verification.
      *
-     * @param  string $token
-     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function requestEmailVerification() {
-        try {
-            $user = Auth::user();
-        } catch (\Tymon\JWTAuth\Exceptions\UnauthorizedHttpException $e) {
-            return response()->json(['error' => 'Token not provided'], 401); 
-        }
-        $user->sendEmailVerificationNotification();
-        return response()->json(['message' => 'Email verification email has been sent']);
+        $user = $this->getUser();
+        return $user->sendEmailVerificationNotification();
     }
     
     /**
      * Verify email address.
-     *
-     * @param  string $token
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -258,27 +247,34 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255',
             'token' => 'required|string',
         ]);
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $request->email)->firstOrFail();
         return $user->markEmailAsVerified($request->token);
     }
     
     /**
      * Check if an email address has been verified.
      *
-     * @param  string $token
-     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function checkEmailVerification(Request $request) {
+        $user = $this->getUser();
+        if(!$user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'Email has not been verified']);
+        }
+        return response()->json(['message' => 'Email has been verified']);
+    }
+    
+    /**
+     * Return the currently authenticated user.
+     *
+     * @return \App\User
+     */
+    private function getUser() {
         try {
             $user = Auth::user();
         } catch (\Tymon\JWTAuth\Exceptions\UnauthorizedHttpException $e) {
             return response()->json(['error' => 'Token not provided'], 401); 
         }
-        if(!$user->hasVerifiedEmail()) {
-            return response()->json(['message' => 'Email has not been verified']);
-        }
-        $user->sendEmailVerificationNotification();
-        return response()->json(['message' => 'Email has been verified']);
+        return $user;
     }
 }
