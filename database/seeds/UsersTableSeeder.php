@@ -13,8 +13,8 @@ class UsersTableSeeder extends Seeder
     public function run()
     {
         DB::table('users')->insert([
-            'name' => 'API Testing',
-            'email' => 'dev.api-testing@vinylpass.com',
+            'name' => 'API Test',
+            'email' => 'dev.api-test@vinylpass.com',
             'password' => password_hash('apitest', PASSWORD_BCRYPT),
             'created_at' => Carbon::now(),
             'updated_at' => Carbon::now()
