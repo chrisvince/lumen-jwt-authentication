@@ -108,10 +108,14 @@ class User
         $userVerification = DB::table('email_verifications')->where('email', $this->email);
         $match = false;
         if($this->email_verified_at) {
-            return response()->json(['message' => 'Email has already been verified']);
+            return response()->json([
+                'message' => 'The email address has already been verified'
+            ], 409);
         }
         if(!$userVerification->exists()) {
-            return response()->json(['error' => 'There was an error processing this request'], 400);
+            return response()->json([
+                'message' => 'The email address could not be verified'
+            ], 404);
         }
         foreach($userVerification->get() as $verification) {
             if(!Hash::check($token, $verification->token)) {
@@ -120,13 +124,17 @@ class User
             $match = true;
         }
         if(!$match) {
-            return response()->json(['error' => 'There was an error processing this request'], 400);
+            return response()->json([
+                'message' => 'The email address could not be verified'
+            ], 404);
         }
         $userVerification->delete();
         $this->forceFill([
             'email_verified_at' => $this->freshTimestamp(),
         ])->save();
-        return response()->json(['message' => 'Email has been verified']);
+        return response()->json([
+            'message' => 'The email address has been verified'
+        ], 200);
     }
     
     /**
@@ -137,7 +145,9 @@ class User
     public function sendEmailVerificationNotification()
     {
         if($this->email_verified_at) {
-            return response()->json(['message' => 'Email has been already been verified'], 400);
+            return response()->json([
+                'message' => 'The email address has been already been verified'
+            ], 409);
         }
         $token = str_random(64);
         DB::table('email_verifications')->insert([
@@ -146,6 +156,8 @@ class User
             'created_at' => Carbon::now()
         ]);
         $this->notify(new VerifyEmail($token));
-        return response()->json(['message' => 'Email verification email has been sent']);
+        return response()->json([
+            'message' => 'An email address verification email has been sent'
+        ], 200);
     }
 }

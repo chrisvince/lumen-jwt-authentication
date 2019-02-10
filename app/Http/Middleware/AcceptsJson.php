@@ -16,7 +16,9 @@ class AcceptsJson
     public function handle($request, Closure $next)
     {
         if($request->header('Accept') !== '*/*' && !$request->wantsJson()) {
-            return response()->json('Not Acceptable', 406);
+            return response()->json([
+                'message' => 'The requested format is not acceptable'
+            ], 406);
         }
         return $next($request);
     }

@@ -24,7 +24,8 @@ class AuthController extends Controller
                 'deactivate',
                 'verifyEmailRequest',
                 'requestEmailVerification',
-                'checkEmailVerification'
+                'checkEmailVerification',
+                'getUser'
             ]
         ]);
     }
@@ -62,7 +63,9 @@ class AuthController extends Controller
     public function deactivate(Request $request) {
         Auth::invalidate();
         Auth::user()->delete();
-        return response()->json(['message' => 'User has been deactivated']);
+        return response()->json([
+            'message' => 'The user has been deactivated'
+        ], 200);
     }
     
     /**
@@ -78,14 +81,15 @@ class AuthController extends Controller
             'password' => 'required|string|min:6'
         ]);
         $user = User::withTrashed()->where('email', $request->email)->first();
-        if(!$user) {
-            return response()->json(['error' => 'User does not exist'], 400);
+        if(!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Unauthenticated'
+            ], 401);
         }
         if (!$user->trashed()) {
-            return response()->json(['error' => 'User is already active'], 400);
-        }
-        if(!Hash::check($request->password, $user->password)) {
-            return response()->json(['error' => 'Unauthenticated'], 401);
+            return response()->json([
+                'message' => 'The user is already active'
+            ], 409);
         }
         $user->restore();
         $credentials = $request->only(['email', 'password']);
@@ -104,7 +108,9 @@ class AuthController extends Controller
         ]);
         $user = User::withTrashed()->where('email', $request->email)->first();
         if($user->trashed()) {
-            return response()->json(['error' => 'User has been deactivated'], 401 );
+            return response()->json([
+                'message' => 'The user is deactivated'
+            ], 401 );
         }
         $credentials = $request->only(['email', 'password']);
         return $this->loginWithCredendials($credentials);
@@ -127,7 +133,9 @@ class AuthController extends Controller
      */
     public function logout() {
         Auth::logout();
-        return response()->json(['message' => 'The user has been logged out']);
+        return response()->json([
+            'message' => 'The user has been logged out'
+        ], 200);
     }
     
     /**
@@ -139,9 +147,13 @@ class AuthController extends Controller
         try {
             $token = Auth::refresh();
         } catch (\Tymon\JWTAuth\Exceptions\TokenBlacklistedException $e) {
-            return response()->json(['error' => 'The token has been blacklisted'], 401);
+            return response()->json([
+                'message' => 'Session expired'
+            ], 401);
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
-            return response()->json(['error' => 'Unauthenticated'], 401);
+            return response()->json([
+                'message' => 'Unauthenticated'
+            ], 401);
         }
         return $this->respondWithToken($token);
     }
@@ -155,9 +167,7 @@ class AuthController extends Controller
      */
     protected function respondWithToken($token) {
         return response()->json([
-            'access_token' => $token,
-            // 'token_type' => 'bearer',
-            // 'expires_in' => Auth::factory()->getTTL() * 60
+            'access_token' => $token
         ]);
     }
     
@@ -168,7 +178,9 @@ class AuthController extends Controller
      */
     protected function loginWithCredendials($credentials) {
         if (!$token = Auth::attempt($credentials)) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json([
+                'message' => 'Unauthenticated'
+            ], 401);
         }
         return $this->respondWithToken($token);
     }
@@ -184,13 +196,19 @@ class AuthController extends Controller
         ]);
         $user = User::withTrashed()->where('email', $request->email)->first();
         if(!$user) {
-            return response()->json(['error' => 'User does not exist'], 400);
+            return response()->json([
+                'message' => 'Email address is not registered'
+            ], 404);
         }
         $response = $this->broker()->sendResetLink($request->only('email'));
         if($response !== Password::RESET_LINK_SENT) {
-            return response()->json(['error' => 'There was an error sending password reset email'], 400);
+            return response()->json([
+                'message' => 'There was an error sending password reset email'
+            ], 500);
         }
-        return response()->json(['message' => 'Password reset email has been sent']);
+        return response()->json([
+            'message' => 'Password reset email has been sent'
+        ], 200);
     }
     
     /**
@@ -212,9 +230,13 @@ class AuthController extends Controller
             }
         );
         if($response !== Password::PASSWORD_RESET) {
-            return response()->json(['error' => 'There was an error resetting the password'], 400);
+            return response()->json([
+                'message' => 'There was an error resetting the password'
+            ], 500);
         }
-        return response()->json(['message' => 'Password has been reset']);
+        return response()->json([
+            'message' => 'Password has been reset'
+        ], 200);
     }
     
     /**
@@ -246,6 +268,9 @@ class AuthController extends Controller
         $this->validate($request, [
             'email' => 'required|string|email|max:255',
             'token' => 'required|string',
+        ], [
+            'email.required' => 'Email not provided',
+            'token.required' => 'Token not provided'
         ]);
         $user = User::where('email', $request->email)->firstOrFail();
         return $user->markEmailAsVerified($request->token);
@@ -259,9 +284,15 @@ class AuthController extends Controller
     public function checkEmailVerification(Request $request) {
         $user = $this->getUser();
         if(!$user->hasVerifiedEmail()) {
-            return response()->json(['message' => 'Email has not been verified']);
+            return response()->json([
+                'message' => 'Email has not been verified',
+                'email_verified' => false
+            ], 200);
         }
-        return response()->json(['message' => 'Email has been verified']);
+        return response()->json([
+            'message' => 'Email has been verified',
+            'email_verified' => true
+        ], 200);
     }
     
     /**
@@ -270,11 +301,7 @@ class AuthController extends Controller
      * @return \App\User
      */
     private function getUser() {
-        try {
-            $user = Auth::user();
-        } catch (\Tymon\JWTAuth\Exceptions\UnauthorizedHttpException $e) {
-            return response()->json(['error' => 'Token not provided'], 401); 
-        }
+        $user = Auth::user();
         return $user;
     }
 }
