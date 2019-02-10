@@ -62,42 +62,42 @@ class AuthController extends Controller
      */
     public function deactivate(Request $request) {
         Auth::invalidate();
-        Auth::user()->delete();
+        Auth::user()->deactivate();
         return response()->json([
             'message' => 'The user has been deactivated'
         ], 200);
     }
     
     /**
-     * Restore a user.
+     * Reactivate a user.
      *
      * @param  string $token
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function restore(Request $request) {
+    public function reactivate(Request $request) {
         $this->validate($request, [
             'email' => 'required|string|email|max:255',
             'password' => 'required|string|min:6'
         ]);
-        $user = User::withTrashed()->where('email', $request->email)->first();
+        $user = User::withDeactivated()->where('email', $request->email)->first();
         if(!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'message' => 'Unauthenticated'
             ], 401);
         }
-        if (!$user->trashed()) {
+        if (!$user->deactivated()) {
             return response()->json([
                 'message' => 'The user is already active'
             ], 409);
         }
-        $user->restore();
+        $user->reactivate();
         $credentials = $request->only(['email', 'password']);
         return $this->loginWithCredendials($credentials);
     }
     
     /**
-     * Login a user.
+     * Log the user in.
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -106,8 +106,8 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255',
             'password' => 'required|string|min:6'
         ]);
-        $user = User::withTrashed()->where('email', $request->email)->first();
-        if($user->trashed()) {
+        $user = User::withDeactivated()->where('email', $request->email)->first();
+        if($user->deactivated()) {
             return response()->json([
                 'message' => 'The user is deactivated'
             ], 401 );
@@ -127,7 +127,7 @@ class AuthController extends Controller
     }
     
     /**
-     * Log the user out (Invalidate the token).
+     * Log the user out.
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -194,7 +194,7 @@ class AuthController extends Controller
         $this->validate($request, [
             'email' => 'required|email'
         ]);
-        $user = User::withTrashed()->where('email', $request->email)->first();
+        $user = User::withDeactivated()->where('email', $request->email)->first();
         if(!$user) {
             return response()->json([
                 'message' => 'Email address is not registered'
@@ -244,7 +244,7 @@ class AuthController extends Controller
      *
      * @return \Illuminate\Contracts\Auth\PasswordBroker
      */
-    public function broker() {
+    private function broker() {
         $passwordBrokerManager = new PasswordBrokerManager(app());
         return $passwordBrokerManager->broker();
     }

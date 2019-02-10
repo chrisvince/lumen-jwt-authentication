@@ -18,6 +18,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
 use DB;
+use App\Scopes\User\DeactivatedScope;
 
 class User
     extends Model
@@ -29,9 +30,20 @@ class User
 {
     use Authenticatable,
         Authorizable,
-        SoftDeletes,
         CanResetPasswordTrait,
         Notifiable;
+        
+    /**
+     * The "booting" method of the model.
+     *
+     * @return void
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::addGlobalScope(new DeactivatedScope);
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -76,7 +88,7 @@ class User
      *
      * @var array
      */
-    protected $dates = ['deleted_at'];
+    protected $dates = ['deactivated_at'];
     
    /**
      * Send the password reset notification.
@@ -159,5 +171,45 @@ class User
         return response()->json([
             'message' => 'An email address verification email has been sent'
         ], 200);
+    }
+    
+    /**
+     * Scope to include deactivated users.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeWithDeactivated($query) {
+        $query->withoutGlobalScope(DeactivatedScope::class);
+    }
+    
+    /**
+     * Determine if the user has been deactivated.
+     *
+     * @return bool
+     */
+    public function deactivated()
+    {
+        return ! is_null($this->deactivated_at);
+    }
+    
+    /**
+     * Deactivate the user.
+     *
+     * @return bool
+     */
+    public function deactivate() {
+        $this->deactivated_at = Carbon::now();
+        return $this->save();
+    }
+    
+    /**
+     * Reactivate the user.
+     *
+     * @return bool
+     */
+    public function reactivate() {
+        $this->deactivated_at = null;
+        return $this->save();
     }
 }

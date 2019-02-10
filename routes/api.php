@@ -15,7 +15,7 @@ $router->group(['prefix' => 'v1'], function () use ($router) {
 		$router->post('user', 'AuthController@user');
 		$router->post('logout', 'AuthController@logout');
 		$router->post('deactivate', 'AuthController@deactivate');
-		$router->post('restore', 'AuthController@restore');
+		$router->post('reactivate', 'AuthController@reactivate');
 		$router->group(['prefix' => 'password'], function () use ($router) {
 			$router->post('reset-request', 'AuthController@resetPasswordRequest');
 			$router->post('reset', 'AuthController@resetPassword');
