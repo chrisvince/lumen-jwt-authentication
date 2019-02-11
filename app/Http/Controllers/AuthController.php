@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\User;
-use Illuminate\Auth\Passwords\PasswordBrokerManager;
+use App\Auth\Passwords\PasswordBrokerManager;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Hash;
 
@@ -107,6 +107,11 @@ class AuthController extends Controller
             'password' => 'required|string|min:6'
         ]);
         $user = User::withDeactivated()->where('email', $request->email)->first();
+        if(!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Unauthenticated'
+            ], 401);
+        }
         if($user->deactivated()) {
             return response()->json([
                 'message' => 'The user is deactivated'
